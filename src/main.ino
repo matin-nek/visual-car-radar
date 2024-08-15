@@ -7,6 +7,12 @@ TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 
 #define SOUND_SPEED 0.0343 // Speed of sound in cm/us
 
+#define CAR_X 90
+#define CAR_Y 100
+#define CAR_W 60
+#define CAR_H 120
+#define CAR_R 15
+
 // Define pins for each sensor
 #define TRIG_PIN_1 16
 #define ECHO_PIN_1 17
@@ -53,7 +59,7 @@ void setup()
 
   tft.fillScreen(TFT_BLACK);
 
-  tft.fillRoundRect(90, 100, 60, 120, 20, TFT_RED);
+  tft.fillRoundRect(CAR_X, CAR_Y, CAR_W, CAR_H, CAR_R, TFT_RED);
 }
 
 float measureDistance(int trigPin, int echoPin)
@@ -79,10 +85,17 @@ float measureDistance(int trigPin, int echoPin)
 void loop()
 {
 
-  tft.drawArc(90, 100, 100, 5, 128, 143, TFT_BLACK, TFT_BLACK, true);
-  tft.drawArc(150, 100, 100, 5, 217, 232, TFT_BLACK, TFT_BLACK, true);
-  tft.drawArc(90, 220, 100, 5, 37, 52, TFT_BLACK, TFT_BLACK, true);
-  tft.drawArc(150, 220, 100, 5, 307, 322, TFT_BLACK, TFT_BLACK, true);
+  tft.drawArc(CAR_X + CAR_R, CAR_Y + CAR_R, 60, CAR_R + 5, 90, 180, TFT_GREEN, TFT_RED, true);
+
+  tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_Y + CAR_R, 80, CAR_R + 5, 180, 270, TFT_GREEN, TFT_RED, true);
+  // tft.drawArc(130, 120, 50, CAR_R + 5, 180, 270, TFT_GREEN, TFT_RED, true);
+
+  tft.drawArc(CAR_X + CAR_R, CAR_X + CAR_H, 90, CAR_R + 5, 0, 90, TFT_GREEN, TFT_RED, true);
+  // tft.drawArc(90, 220, 80, CAR_R + 5, 0, 90, TFT_GREEN, TFT_RED, true);
+
+  tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_X + CAR_H, 100, CAR_R + 5, 270, 360, TFT_GREEN, TFT_RED, true);
+  // tft.drawArc(150, 220, 90, CAR_R + 5, 270, 360, TFT_GREEN, TFT_RED, true);
+
   // Measure distance from each sensor
   for (int i = 0; i < test_samples; i++)
   {
@@ -123,18 +136,19 @@ void loop()
   Serial.print(distance4);
   Serial.println(" cm");
 
-  tft.setCursor(10, 10);
-  tft.print(distance1);
-  tft.drawArc(90, 100, distance1 / 3, 5, 128, 143, TFT_DARKGREEN, TFT_GREEN, true);
-  tft.setCursor(200, 10);
-  tft.print(distance2);
-  tft.drawArc(150, 100, distance2 / 3, 5, 217, 232, TFT_DARKGREEN, TFT_GREEN, true);
-  tft.setCursor(10, 300);
-  tft.print(distance3);
-  tft.drawArc(90, 220, distance3 / 3, 5, 37, 52, TFT_DARKGREEN, TFT_GREEN, true);
-  tft.setCursor(200, 300);
-  tft.print(distance4);
-  tft.drawArc(150, 220, distance4 / 3, 5, 307, 322, TFT_DARKGREEN, TFT_GREEN, true);
+  // tft.setCursor(10, 10);
+  // tft.print(distance1);
+  // tft.drawArc(100, 100, distance1 / 3, 5, 90, 180, TFT_DARKGREEN, TFT_GREEN, true);
+
+  // tft.setCursor(200, 10);
+  // tft.print(distance2);
+  // tft.drawArc(150, 100, distance2 / 3, 5, 180, 270, TFT_DARKGREEN, TFT_GREEN, true);
+  // tft.setCursor(10, 300);
+  // tft.print(distance3);
+  // tft.drawArc(90, 220, distance3 / 3, 5, 0, 90, TFT_DARKGREEN, TFT_GREEN, true);
+  // tft.setCursor(200, 300);
+  // tft.print(distance4);
+  // tft.drawArc(150, 220, distance4 / 3, 5, 270, 360, TFT_DARKGREEN, TFT_GREEN, true);
 
   // Small delay before next measurement cycle
   delay(500);

@@ -174,7 +174,7 @@
 #define TFT_CS    33  // Chip select control pin D8
 #define TFT_DC    27  // Data Command control pin
 // #define TFT_RST   PIN_D4  // Reset pin (could connect to NodeMCU RST, see next line)
-#define TFT_RST  26     // Set TFT_RST to -1 if the display RESET is connected to NodeMCU RST or 3.3V
+#define TFT_RST  -1     // Set TFT_RST to -1 if the display RESET is connected to NodeMCU RST or 3.3V
 
 
 //#define TFT_BL PIN_D1  // LED back-light (only for ST7789 with backlight control pin)

@@ -1,19 +1,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <TFT_eSPI.h> // Hardware-specific library
-#include <BluetoothSerial.h>
-
-TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
-
-#define SOUND_SPEED 0.0343 // Speed of sound in cm/us
-
-#define CAR_X 90
-#define CAR_Y 100
-#define CAR_W 60
-#define CAR_H 120
-#define CAR_R 15
-
-// Define pins for each sensor
+#include <WiFi.h>
 #define TRIG_PIN_1 16
 #define ECHO_PIN_1 17
 
@@ -23,133 +11,154 @@ TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 #define TRIG_PIN_3 21
 #define ECHO_PIN_3 19
 
-#define TRIG_PIN_4 4
+#define TRIG_PIN_4 2
 #define ECHO_PIN_4 15
 
-#define test_samples 4
+#define SOUND_SPEED 0.0343 // Speed of sound in cm/us
 
-float distances1[test_samples];
-float distances2[test_samples];
-float distances3[test_samples];
-float distances4[test_samples];
-float distance1;
-float distance2;
-float distance3;
-float distance4;
-BluetoothSerial serialbt;
-void setup()
-{
-  Serial.begin(115200); // Start serial communication
+TFT_eSPI tft = TFT_eSPI(); // Create an instance of the TFT_eSPI library
 
-  // Set pin modes for all sensors
-  pinMode(TRIG_PIN_1, OUTPUT);
-  pinMode(ECHO_PIN_1, INPUT);
+// Define constants for drawing on the TFT
+#define CAR_X 90
+#define CAR_Y 100
+#define CAR_W 60
+#define CAR_H 120
+#define CAR_R 15
 
-  pinMode(TRIG_PIN_2, OUTPUT);
-  pinMode(ECHO_PIN_2, INPUT);
+#define MIN_DIST 10  // Define minimum distance
+#define MAX_DIST 400 // Define maximum distance
 
-  pinMode(TRIG_PIN_3, OUTPUT);
-  pinMode(ECHO_PIN_3, INPUT);
+// Define distance zones for color mapping
+int Zone1 = 30, Zone2 = 50, Zone3 = 80;
 
-  pinMode(TRIG_PIN_4, OUTPUT);
-  pinMode(ECHO_PIN_4, INPUT);
+volatile unsigned long duration1, duration2, duration3, duration4;
+volatile unsigned long startTime1, startTime2, startTime3, startTime4;
 
+int lastDistance1 = CAR_R + 5, lastDistance2 = CAR_R + 5, lastDistance3 = CAR_R + 5, lastDistance4 = CAR_R + 5;
+
+void IRAM_ATTR echoISR1() {
+  if (digitalRead(ECHO_PIN_1) == HIGH) {
+    startTime1 = micros();
+  } else {
+    duration1 = micros() - startTime1;
+  }
+}
+
+void IRAM_ATTR echoISR2() {
+  if (digitalRead(ECHO_PIN_2) == HIGH) {
+    startTime2 = micros();
+  } else {
+    duration2 = micros() - startTime2;
+  }
+}
+
+void IRAM_ATTR echoISR3() {
+  if (digitalRead(ECHO_PIN_3) == HIGH) {
+    startTime3 = micros();
+  } else {
+    duration3 = micros() - startTime3;
+  }
+}
+
+void IRAM_ATTR echoISR4() {
+  if (digitalRead(ECHO_PIN_4) == HIGH) {
+    startTime4 = micros();
+  } else {
+    duration4 = micros() - startTime4;
+  }
+}
+
+int returnColor(int Distance) {
+  return Distance < Zone1 ? TFT_RED : Distance < Zone2 ? TFT_ORANGE
+                                  : Distance < Zone3   ? TFT_YELLOW
+                                                       : TFT_GREEN;
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  // Initialize TFT
   tft.init();
   tft.setRotation(2);
 
+  // Clear screen and draw a rounded rectangle
   tft.fillScreen(TFT_BLACK);
-
   tft.fillRoundRect(CAR_X, CAR_Y, CAR_W, CAR_H, CAR_R, TFT_RED);
+
+  pinMode(TRIG_PIN_1, OUTPUT);
+  pinMode(ECHO_PIN_1, INPUT);
+  pinMode(TRIG_PIN_2, OUTPUT);
+  pinMode(ECHO_PIN_2, INPUT);
+  pinMode(TRIG_PIN_3, OUTPUT);
+  pinMode(ECHO_PIN_3, INPUT);
+  pinMode(TRIG_PIN_4, OUTPUT);
+  pinMode(ECHO_PIN_4, INPUT);
+
+  attachInterrupt(digitalPinToInterrupt(ECHO_PIN_1), echoISR1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ECHO_PIN_2), echoISR2, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ECHO_PIN_3), echoISR3, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(ECHO_PIN_4), echoISR4, CHANGE);
 }
 
-float measureDistance(int trigPin, int echoPin)
-{
-  // Clear the trigger pin
+void loop() {
+  // Trigger each sensor one by one
+  triggerSensor(TRIG_PIN_1);
+  delay(60); // Ensure at least 60ms between each trigger
+
+  triggerSensor(TRIG_PIN_2);
+  delay(60);
+
+  triggerSensor(TRIG_PIN_3);
+  delay(60);
+
+  triggerSensor(TRIG_PIN_4);
+  delay(60);
+
+  // Calculate distances
+  float distance1 = duration1 * SOUND_SPEED / 2;
+  float distance2 = duration2 * SOUND_SPEED / 2;
+  float distance3 = duration3 * SOUND_SPEED / 2;
+  float distance4 = duration4 * SOUND_SPEED / 2;
+
+  // Map and constrain distances for visual representation
+  distance1 = map(constrain(distance1, MIN_DIST, MAX_DIST), MIN_DIST, MAX_DIST, CAR_R + 5, 100);
+  distance2 = map(constrain(distance2, MIN_DIST, MAX_DIST), MIN_DIST, MAX_DIST, CAR_R + 5, 100);
+  distance3 = map(constrain(distance3, MIN_DIST, MAX_DIST), MIN_DIST, MAX_DIST, CAR_R + 5, 100);
+  distance4 = map(constrain(distance4, MIN_DIST, MAX_DIST), MIN_DIST, MAX_DIST, CAR_R + 5, 100);
+
+  // Erase previous arcs
+  tft.drawArc(CAR_X + CAR_R, CAR_Y + CAR_R, lastDistance1, CAR_R + 5, 90, 180, TFT_BLACK, TFT_BLACK, true);
+  tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_Y + CAR_R, lastDistance2, CAR_R + 5, 180, 270, TFT_BLACK, TFT_BLACK, true);
+  tft.drawArc(CAR_X + CAR_R, CAR_Y + CAR_H - CAR_R, lastDistance3, CAR_R + 5, 0, 90, TFT_BLACK, TFT_BLACK, true);
+  tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_Y + CAR_H - CAR_R, lastDistance4, CAR_R + 5, 270, 360, TFT_BLACK, TFT_BLACK, true);
+
+  // Draw new arcs
+  tft.drawArc(CAR_X + CAR_R, CAR_Y + CAR_R, distance1, CAR_R + 5, 90, 180, returnColor(distance1), TFT_RED, true);
+  tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_Y + CAR_R, distance2, CAR_R + 5, 180, 270, returnColor(distance2), TFT_RED, true);
+  tft.drawArc(CAR_X + CAR_R, CAR_Y + CAR_H - CAR_R, distance3, CAR_R + 5, 0, 90, returnColor(distance3), TFT_RED, true);
+  tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_Y + CAR_H - CAR_R, distance4, CAR_R + 5, 270, 360, returnColor(distance4), TFT_RED, true);
+
+  // Display the distance values in the corners
+  tft.setTextColor(TFT_WHITE, TFT_BLACK); // Set text color to white with black background
+
+  tft.drawString(String(distance1) + " cm", 0, 0, 2);               // Top-left corner
+  tft.drawString(String(distance2) + " cm", 240, 0, 2);             // Top-right corner
+  tft.drawString(String(distance3) + " cm", 0, 320 - 16, 2);        // Bottom-left corner
+  tft.drawString(String(distance4) + " cm", 240, 320 - 16, 2);      // Bottom-right corner
+
+  // Store current distances
+  lastDistance1 = distance1;
+  lastDistance2 = distance2;
+  lastDistance3 = distance3;
+  lastDistance4 = distance4;
+
+  delay(1000);
+}
+
+void triggerSensor(int trigPin) {
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
-
-  // Send a 10 microsecond pulse to the trigger pin
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
-
-  // Read the echo pin
-  long duration = pulseIn(echoPin, HIGH);
-
-  // Calculate the distance in centimeters
-  float distance = (duration / 2.0) * SOUND_SPEED;
-
-  return distance;
-}
-
-void loop()
-{
-
-  tft.drawArc(CAR_X + CAR_R, CAR_Y + CAR_R, 60, CAR_R + 5, 90, 180, TFT_GREEN, TFT_RED, true);
-
-  tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_Y + CAR_R, 80, CAR_R + 5, 180, 270, TFT_GREEN, TFT_RED, true);
-  // tft.drawArc(130, 120, 50, CAR_R + 5, 180, 270, TFT_GREEN, TFT_RED, true);
-
-  tft.drawArc(CAR_X + CAR_R, CAR_X + CAR_H, 90, CAR_R + 5, 0, 90, TFT_GREEN, TFT_RED, true);
-  // tft.drawArc(90, 220, 80, CAR_R + 5, 0, 90, TFT_GREEN, TFT_RED, true);
-
-  tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_X + CAR_H, 100, CAR_R + 5, 270, 360, TFT_GREEN, TFT_RED, true);
-  // tft.drawArc(150, 220, 90, CAR_R + 5, 270, 360, TFT_GREEN, TFT_RED, true);
-
-  // Measure distance from each sensor
-  for (int i = 0; i < test_samples; i++)
-  {
-    distances1[i] = measureDistance(TRIG_PIN_1, ECHO_PIN_1);
-    distances2[i] = measureDistance(TRIG_PIN_2, ECHO_PIN_2);
-    distances3[i] = measureDistance(TRIG_PIN_3, ECHO_PIN_3);
-    distances4[i] = measureDistance(TRIG_PIN_4, ECHO_PIN_4);
-    if (i == 0)
-    {
-      distance1 = distances1[i];
-      distance2 = distances2[i];
-      distance3 = distances3[i];
-      distance4 = distances4[i];
-    }
-    else
-    {
-      distance1 = (distance1 + distances1[i]) / 2;
-      distance2 = (distance2 + distances2[i]) / 2;
-      distance3 = (distance3 + distances3[i]) / 2;
-      distance4 = (distance4 + distances4[i]) / 2;
-    }
-  }
-
-  // Print the distances to the Serial Monitor
-  Serial.print("Distance Sensor 1: ");
-  Serial.print(distance1);
-  Serial.println(" cm");
-
-  Serial.print("Distance Sensor 2: ");
-  Serial.print(distance2);
-  Serial.println(" cm");
-
-  Serial.print("Distance Sensor 3: ");
-  Serial.print(distance3);
-  Serial.println(" cm");
-
-  Serial.print("Distance Sensor 4: ");
-  Serial.print(distance4);
-  Serial.println(" cm");
-
-  // tft.setCursor(10, 10);
-  // tft.print(distance1);
-  // tft.drawArc(100, 100, distance1 / 3, 5, 90, 180, TFT_DARKGREEN, TFT_GREEN, true);
-
-  // tft.setCursor(200, 10);
-  // tft.print(distance2);
-  // tft.drawArc(150, 100, distance2 / 3, 5, 180, 270, TFT_DARKGREEN, TFT_GREEN, true);
-  // tft.setCursor(10, 300);
-  // tft.print(distance3);
-  // tft.drawArc(90, 220, distance3 / 3, 5, 0, 90, TFT_DARKGREEN, TFT_GREEN, true);
-  // tft.setCursor(200, 300);
-  // tft.print(distance4);
-  // tft.drawArc(150, 220, distance4 / 3, 5, 270, 360, TFT_DARKGREEN, TFT_GREEN, true);
-
-  // Small delay before next measurement cycle
-  delay(500);
 }

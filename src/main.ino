@@ -11,8 +11,8 @@
 #define TRIG_PIN_3 21
 #define ECHO_PIN_3 19
 
-#define TRIG_PIN_4 2
-#define ECHO_PIN_4 15
+#define TRIG_PIN_4 15
+#define ECHO_PIN_4 2
 
 #define SOUND_SPEED 0.0343 // Speed of sound in cm/us
 
@@ -127,9 +127,13 @@ void loop() {
   distance4 = map(constrain(distance4, MIN_DIST, MAX_DIST), MIN_DIST, MAX_DIST, CAR_R + 5, 100);
 
   // Erase previous arcs
+  if (distance1 < lastDistance1)
   tft.drawArc(CAR_X + CAR_R, CAR_Y + CAR_R, lastDistance1, CAR_R + 5, 90, 180, TFT_BLACK, TFT_BLACK, true);
+  if (distance2 < lastDistance2)
   tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_Y + CAR_R, lastDistance2, CAR_R + 5, 180, 270, TFT_BLACK, TFT_BLACK, true);
+  if (distance3 < lastDistance3)
   tft.drawArc(CAR_X + CAR_R, CAR_Y + CAR_H - CAR_R, lastDistance3, CAR_R + 5, 0, 90, TFT_BLACK, TFT_BLACK, true);
+  if (distance4 < lastDistance4)
   tft.drawArc(CAR_X + CAR_W - CAR_R, CAR_Y + CAR_H - CAR_R, lastDistance4, CAR_R + 5, 270, 360, TFT_BLACK, TFT_BLACK, true);
 
   // Draw new arcs
@@ -141,10 +145,14 @@ void loop() {
   // Display the distance values in the corners
   tft.setTextColor(TFT_WHITE, TFT_BLACK); // Set text color to white with black background
 
+  tft.fillRect(58,0,8,16,TFT_BLACK);
   tft.drawString(String(distance1) + " cm", 0, 0, 2);               // Top-left corner
-  tft.drawString(String(distance2) + " cm", 240, 0, 2);             // Top-right corner
+  tft.fillRect(232,0,8,16,TFT_BLACK);
+  tft.drawString(String(distance2) + " cm", 174, 0, 2);             // Top-right corner
+  tft.fillRect(58,304,8,16,TFT_BLACK);
   tft.drawString(String(distance3) + " cm", 0, 320 - 16, 2);        // Bottom-left corner
-  tft.drawString(String(distance4) + " cm", 240, 320 - 16, 2);      // Bottom-right corner
+  tft.fillRect(232,304,8,16,TFT_BLACK);
+  tft.drawString(String(distance4) + " cm", 174, 320 - 16, 2);      // Bottom-right corner
 
   // Store current distances
   lastDistance1 = distance1;

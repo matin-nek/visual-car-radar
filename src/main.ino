@@ -3,19 +3,25 @@
 #include <TFT_eSPI.h> // Hardware-specific library
 #include <WiFi.h>
 #include <WebServer.h>
-#define TRIG_PIN_1 16
-#define ECHO_PIN_1 17
+#define TRIG_PIN_1 21
+#define ECHO_PIN_1 22
 
-#define TRIG_PIN_2 5
-#define ECHO_PIN_2 18
+#define TRIG_PIN_2 17
+#define ECHO_PIN_2 16
 
-#define TRIG_PIN_3 21
-#define ECHO_PIN_3 19
+#define TRIG_PIN_3 26
+#define ECHO_PIN_3 25
 
 #define TRIG_PIN_4 15
 #define ECHO_PIN_4 2
 
 #define SOUND_SPEED 0.0343 // Speed of sound in cm/us
+
+#define BUZZER_PIN 23 // Pin connected to the buzzer
+
+#define TONE_ZONE1 10 // Frequency for Zone 1 (closest)
+#define TONE_ZONE2 5  // Frequency for Zone 2 (medium distance)
+#define TONE_ZONE3 1  // Frequency for Zone 3 (far distance)
 
 TFT_eSPI tft = TFT_eSPI(); // Create an instance of the TFT_eSPI library
 
@@ -27,7 +33,7 @@ TFT_eSPI tft = TFT_eSPI(); // Create an instance of the TFT_eSPI library
 #define CAR_R 15
 
 #define MIN_DIST 10  // Define minimum distance
-#define MAX_DIST 100 // Define maximum distance
+#define MAX_DIST 80 // Define maximum distance
 
 // Define distance zones for color mapping
 int Zone1 = 30, Zone2 = 50, Zone3 = 80;
@@ -89,9 +95,7 @@ void IRAM_ATTR echoISR4()
 
 int returnColor(int Distance)
 {
-  return Distance < Zone1 ? TFT_RED : Distance < Zone2 ? TFT_ORANGE
-                                  : Distance < Zone3   ? TFT_YELLOW
-                                                       : TFT_GREEN;
+  return Distance < Zone1 ? TFT_RED : Distance < Zone2 ? TFT_ORANGE : Distance < Zone3   ? TFT_YELLOW : TFT_GREEN;
 }
 
 void setupHTTPServer()
@@ -209,13 +213,21 @@ void setup()
 
   // Setup SRF05 sensors
   pinMode(TRIG_PIN_1, OUTPUT);
-  pinMode(ECHO_PIN_1, INPUT);
+  pinMode(ECHO_PIN_1, INPUT_PULLUP);
   pinMode(TRIG_PIN_2, OUTPUT);
-  pinMode(ECHO_PIN_2, INPUT);
+  pinMode(ECHO_PIN_2, INPUT_PULLUP);
   pinMode(TRIG_PIN_3, OUTPUT);
-  pinMode(ECHO_PIN_3, INPUT);
+  pinMode(ECHO_PIN_3, INPUT_PULLUP);
   pinMode(TRIG_PIN_4, OUTPUT);
-  pinMode(ECHO_PIN_4, INPUT);
+  pinMode(ECHO_PIN_4, INPUT_PULLUP);
+
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);
+
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(200);
+  digitalWrite(BUZZER_PIN, LOW);
 
   attachInterrupt(digitalPinToInterrupt(ECHO_PIN_1), echoISR1, CHANGE);
   attachInterrupt(digitalPinToInterrupt(ECHO_PIN_2), echoISR2, CHANGE);
@@ -299,7 +311,47 @@ void loop()
   lastDistance3 = distance3;
   lastDistance4 = distance4;
 
+  // Find the minimum distance among all sensors
+  int minDistance = min(min(distance1, distance2), min(distance3, distance4));
+
+  // Determine the zone of the closest object based on the minimum distance
+  int closestZone = determineZone(minDistance);
+
+  // Control the buzzer based on the closest zone
+  controlBuzzer(closestZone);
+
+
   delay(1000);
+}
+
+int determineZone(int distance) {
+  if (distance < Zone1) {
+    return 1;
+  } else if (distance < Zone2) {
+    return 2;
+  } else if (distance < Zone3) {
+    return 3;
+  } else {
+    return 4;
+  }
+}
+
+void controlBuzzer(int zone) {
+  switch (zone) {
+    case 1:
+      tone(BUZZER_PIN, TONE_ZONE1);
+      break;
+    case 2:
+      tone(BUZZER_PIN, TONE_ZONE2);
+      break;
+    case 3:
+      tone(BUZZER_PIN, TONE_ZONE3);
+      break;
+    case 4:
+    default:
+      noTone(BUZZER_PIN); // Stop the buzzer in Zone 4
+      break;
+  }
 }
 
 void triggerSensor(int trigPin)
